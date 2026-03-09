@@ -9,7 +9,7 @@
   <script src="https://cdn.8thwall.com/web/xrextras/xrextras.js"></script>
 
   <!-- 8th Wall Engine -->
-  <script async src="../engine/xr.js" data-preload-chunks="slam"></script>
+  <script async src="../engine/xr.js"></script>
 
   <!-- Image Target Configuration -->
   <script>
@@ -31,64 +31,85 @@
     window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded);
   </script>
 
-  <!-- Chromakey Shader
-       Makes a specific color (green screen) transparent in video textures.
-       Fragment shader: computes distance from chroma color, maps to alpha. -->
+  <!-- Component to play/pause video on image target detection -->
+  <script>
+    AFRAME.registerComponent('video-playback-on-scan', {
+      schema: {
+        video: {type: 'selector'},
+      },
+      init: function () {
+        this.video = this.data.video;
+        if (!this.video) return;
+
+        this.video.pause();
+
+        this.el.addEventListener('xrimagefound', () => {
+          this.video.play();
+        });
+
+        this.el.addEventListener('xrimagelost', () => {
+          this.video.pause();
+        });
+      },
+    });
+  </script>
+
+  <!-- Chromakey Shader -->
   <script>
     AFRAME.registerShader('chromakey', {
       schema: {
         src: {type: 'map'},
-        color: {default: {x: 0.0, y: 1.0, z: 0.0}, type: 'vec3', is: 'uniform'},
-        chroma: {type: 'bool', is: 'uniform'},
-        transparent: {default: true, is: 'uniform'}
+        color: {type: 'color', default: '#00FF00'},
+        chroma: {type: 'bool', default: true},
+        transparent: {default: true}
       },
 
       init: function (data) {
-        var videoEl = data.src;
-        document.addEventListener('click', function () {
-          if (videoEl && videoEl.play) { videoEl.play(); }
-        });
+        const videoEl = data.src;
+        if (!videoEl) { return; }
 
-        var videoTexture = new THREE.VideoTexture(data.src);
+        var videoTexture = new THREE.VideoTexture(videoEl);
         videoTexture.minFilter = THREE.LinearFilter;
         this.material = new THREE.ShaderMaterial({
+          transparent: data.transparent,
           uniforms: {
-            chroma: {type: 'b', value: data.chroma},
-            color: {type: 'c', value: data.color},
-            myTexture: {type: 't', value: videoTexture}
+            chroma: { type: 'b', value: data.chroma },
+            color: { type: 'c', value: new THREE.Color(data.color) },
+            myTexture: { type: 't', value: videoTexture }
           },
-          vertexShader: [
-            'varying vec2 vUv;',
-            'void main(void) {',
-            '  vUv = uv;',
-            '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
-            '}'
-          ].join('\n'),
-          fragmentShader: [
-            'uniform sampler2D myTexture;',
-            'uniform vec3 color;',
-            'uniform bool chroma;',
-            'varying vec2 vUv;',
-            'void main(void) {',
-            '  vec3 tColor = texture2D(myTexture, vUv).rgb;',
-            '  float a;',
-            '  if (chroma == true) {',
-            '    a = (length(tColor - color) - 0.5) * 7.0;',
-            '  } else {',
-            '    a = 1.0;',
-            '  }',
-            '  gl_FragColor = vec4(tColor, a);',
-            '}'
-          ].join('\n'),
-          transparent: true
+          vertexShader: this.vertexShader,
+          fragmentShader: this.fragmentShader
         });
       },
 
       update: function (data) {
-        this.material.color = data.color;
-        this.material.src = data.src;
+        this.material.uniforms.chroma.value = data.chroma;
+        this.material.uniforms.color.value.set(data.color);
         this.material.transparent = data.transparent;
-      }
+      },
+
+      vertexShader: [
+        'varying vec2 vUv;',
+        'void main(void) {',
+        '  vUv = uv;',
+        '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+        '}'
+      ].join('\n'),
+
+      fragmentShader: [
+        'uniform sampler2D myTexture;',
+        'uniform vec3 color;',
+        'uniform bool chroma;',
+        'varying vec2 vUv;',
+        'void main(void) {',
+        '  vec3 tColor = texture2D(myTexture, vUv).rgb;',
+        '  float a = 1.0;',
+        '  if (chroma) {',
+        '    a = (length(tColor - color) - 0.75) * 7.0;',
+        '  }',
+        '  gl_FragColor = vec4(tColor, a);',
+        '}'
+      ].join('\n')
     });
   </script>
 </head>
@@ -100,25 +121,19 @@
     xrextras-runtime-error
     xrweb="disableWorldTracking: true">
 
-    <!-- Preload video asset
-         Replace ../assets/greenscreen.mp4 with your own green screen video -->
     <a-assets>
-      <video id="vid" src="../assets/mask_green_back.mp4"
-             autoplay loop muted playsinline crossorigin="anonymous"></video>
+      <video id="vid" src="../assets/mask_green_sil.mp4"
+             loop muted playsinline crossorigin="anonymous"></video>
     </a-assets>
 
     <a-camera position="0 4 10"></a-camera>
 
-    <xrextras-named-image-target name="my-poster">
-
-      <!-- Video plane with chromakey shader
-           - color: 0 1 0 = green (use 0 0 1 for blue screen)
-           - Adjust width/height to match your video aspect ratio -->
-      <a-entity geometry="primitive: plane; width: 2; height: 1.5"
-                material="shader: chromakey; src: #vid; chroma: true; color: 0. 1. 0.; transparent: true"
-                position="0 0.0 0">
+    <xrextras-named-image-target name="my-poster" video-playback-on-scan="video: #vid">
+      <a-entity
+        geometry="primitive: plane; width: 2; height: 1.5"
+        material="shader: chromakey; src: #vid; chroma: true; color: #00FF00;"
+        position="0 0.0 0">
       </a-entity>
-
     </xrextras-named-image-target>
 
   </a-scene>
