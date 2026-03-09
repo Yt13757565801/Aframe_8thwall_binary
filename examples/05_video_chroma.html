@@ -39,38 +39,56 @@
       schema: {
         src: {type: 'map'},
         color: {default: {x: 0.0, y: 1.0, z: 0.0}, type: 'vec3', is: 'uniform'},
+        chroma: {type: 'bool', is: 'uniform'},
         transparent: {default: true, is: 'uniform'}
       },
+
       init: function (data) {
+        var videoEl = data.src;
+        document.addEventListener('click', function () {
+          if (videoEl && videoEl.play) { videoEl.play(); }
+        });
+
         var videoTexture = new THREE.VideoTexture(data.src);
         videoTexture.minFilter = THREE.LinearFilter;
         this.material = new THREE.ShaderMaterial({
           uniforms: {
+            chroma: {type: 'b', value: data.chroma},
             color: {type: 'c', value: data.color},
             myTexture: {type: 't', value: videoTexture}
           },
-          vertexShader: this.vertexShader,
-          fragmentShader: this.fragmentShader,
+          vertexShader: [
+            'varying vec2 vUv;',
+            'void main(void) {',
+            '  vUv = uv;',
+            '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+            '}'
+          ].join('\n'),
+          fragmentShader: [
+            'uniform sampler2D myTexture;',
+            'uniform vec3 color;',
+            'uniform bool chroma;',
+            'varying vec2 vUv;',
+            'void main(void) {',
+            '  vec3 tColor = texture2D(myTexture, vUv).rgb;',
+            '  float a;',
+            '  if (chroma == true) {',
+            '    a = (length(tColor - color) - 0.5) * 7.0;',
+            '  } else {',
+            '    a = 1.0;',
+            '  }',
+            '  gl_FragColor = vec4(tColor, a);',
+            '}'
+          ].join('\n'),
           transparent: true
         });
       },
-      vertexShader: [
-        'varying vec2 vUv;',
-        'void main(void) {',
-        '  vUv = uv;',
-        '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
-        '}'
-      ].join('\n'),
-      fragmentShader: [
-        'uniform sampler2D myTexture;',
-        'uniform vec3 color;',
-        'varying vec2 vUv;',
-        'void main(void) {',
-        '  vec3 tColor = texture2D(myTexture, vUv).rgb;',
-        '  float a = (length(tColor - color) - 0.5) * 7.0;',
-        '  gl_FragColor = vec4(tColor, a);',
-        '}'
-      ].join('\n')
+
+      update: function (data) {
+        this.material.color = data.color;
+        this.material.src = data.src;
+        this.material.transparent = data.transparent;
+      }
     });
   </script>
 </head>
@@ -97,7 +115,7 @@
            - color: 0 1 0 = green (use 0 0 1 for blue screen)
            - Adjust width/height to match your video aspect ratio -->
       <a-entity geometry="primitive: plane; width: 2; height: 1.5"
-                material="shader: chromakey; src: #vid; color: 0 1 0; transparent: true"
+                material="shader: chromakey; src: #vid; chroma: true; color: 0. 1. 0.; transparent: true"
                 position="0 0.75 0">
       </a-entity>
 
