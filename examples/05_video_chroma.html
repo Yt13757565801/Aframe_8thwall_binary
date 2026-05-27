@@ -207,29 +207,13 @@
   <a-camera position="0 4 10"></a-camera>
 
   <!-- IMAGE TARGET -->
-  <xrextras-named-image-target
-    name="my-poster"
-    video-playback-on-scan="video: #vid">
-
-    <!-- VIDEO -->
+ 
+  <xrextras-named-image-target name="my-poster" video-playback-on-scan="video: #vid">
     <a-entity
-
-      geometry="
-        primitive: plane;
-        width: 0.7;
-        height: 1.05
-      "
-
-      material="
-        shader: chromakey;
-        src: #vid;
-        color: #00FF00;
-      "
-
-      position="0 0 0.02">
-
+      geometry="primitive: plane; width: 2; height: 1.5"
+      material="shader: chromakey; src: #vid; chroma: true; color: #61B050;"
+      position="0 0.0 0">
     </a-entity>
-
   </xrextras-named-image-target>
 
 </a-scene>
