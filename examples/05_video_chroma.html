@@ -84,93 +84,62 @@
   </script>
 
   <!-- GREEN SCREEN SHADER -->
-  <script>
+   <!-- Chromakey Shader -->
+   <script>
     AFRAME.registerShader('chromakey', {
-
       schema: {
-        src: { type: 'map' },
-        color: {
-          type: 'color',
-          default: '#00FF00'
-        },
-        transparent: {
-          default: true
-        }
+        src: {type: 'map'},
+        color: {type: 'color', default: '#00FF00'},
+        chroma: {type: 'bool', default: true},
+        transparent: {default: true}
       },
 
       init: function (data) {
+        const videoEl = data.src;
+        if (!videoEl) { return; }
 
-        const video = data.src;
-
-        const texture =
-          new THREE.VideoTexture(video);
-
-        texture.minFilter =
-          THREE.LinearFilter;
-
-        this.material =
-          new THREE.ShaderMaterial({
-
-          transparent: true,
-
+        var videoTexture = new THREE.VideoTexture(videoEl);
+        videoTexture.minFilter = THREE.LinearFilter;
+        this.material = new THREE.ShaderMaterial({
+          transparent: data.transparent,
           uniforms: {
-
-            color: {
-              value:
-                new THREE.Color(data.color)
-            },
-
-            texture: {
-              value: texture
-            }
+            chroma: { type: 'b', value: data.chroma },
+            color: { type: 'c', value: new THREE.Color(data.color) },
+            myTexture: { type: 't', value: videoTexture }
           },
-
-          vertexShader: `
-
-            varying vec2 vUv;
-
-            void main() {
-
-              vUv = uv;
-
-              gl_Position =
-                projectionMatrix *
-                modelViewMatrix *
-                vec4(position,1.0);
-
-            }
-
-          `,
-
-          fragmentShader: `
-
-            uniform sampler2D texture;
-            uniform vec3 color;
-
-            varying vec2 vUv;
-
-            void main() {
-
-              vec4 tColor =
-                texture2D(texture, vUv);
-
-              float diff =
-                distance(
-                  tColor.rgb,
-                  color
-                );
-
-              if(diff < 0.55){
-                discard;
-              }
-
-              gl_FragColor = tColor;
-
-            }
-
-          `
+          vertexShader: this.vertexShader,
+          fragmentShader: this.fragmentShader
         });
-      }
+      },
+
+      update: function (data) {
+        this.material.uniforms.chroma.value = data.chroma;
+        this.material.uniforms.color.value.set(data.color);
+        this.material.transparent = data.transparent;
+      },
+
+      vertexShader: [
+        'varying vec2 vUv;',
+        'void main(void) {',
+        '  vUv = uv;',
+        '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+        '}'
+      ].join('\n'),
+
+      fragmentShader: [
+        'uniform sampler2D myTexture;',
+        'uniform vec3 color;',
+        'uniform bool chroma;',
+        'varying vec2 vUv;',
+        'void main(void) {',
+        '  vec3 tColor = texture2D(myTexture, vUv).rgb;',
+        '  float a = 1.0;',
+        '  if (chroma) {',
+        '    a = (length(tColor - color) - 0.75) * 7.0;',
+        '  }',
+        '  gl_FragColor = vec4(tColor, a);',
+        '}'
+      ].join('\n')
     });
   </script>
 
@@ -188,7 +157,7 @@
 
     <video
       id="vid"
-      src="../assets/Targets/green back.mp4"
+      src="../assets/Targets/greenback.mp4"
 
       preload="auto"
       autoplay
