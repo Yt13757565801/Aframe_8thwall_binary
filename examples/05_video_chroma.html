@@ -135,7 +135,7 @@
         '  vec3 tColor = texture2D(myTexture, vUv).rgb;',
         '  float a = 1.0;',
         '  if (chroma) {',
-        '    a = (length(tColor - color) - 0.75) * 7.0;',
+        '    a = (length(tColor - color) - 0.55) * 7.0;',
         '  }',
         '  gl_FragColor = vec4(tColor, a);',
         '}'
@@ -172,18 +172,22 @@
 
   </a-assets>
 
-  <!-- CAMERA -->
-  <a-camera position="0 4 10"></a-camera>
+
 
   <!-- IMAGE TARGET -->
  
+
+  
   <xrextras-named-image-target name="my-poster" video-playback-on-scan="video: #vid">
     <a-entity
       geometry="primitive: plane; width: 0.7; height: 1.05"
       material="shader: chromakey; src: #vid; chroma: true; color: #61B050;"
-      position="0 0.0 0">
+      position="0 0.1 0">
     </a-entity>
   </xrextras-named-image-target>
+
+    <!-- CAMERA -->
+    <a-camera position="0 4 10"></a-camera>
 
 </a-scene>
 
